@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "E:/Codes/CAndC++/1-4RandomKnowledge",
+    "command": "gcc -std=c17 practice1.c",
+    "file": "practice1.c"
+  }
+]

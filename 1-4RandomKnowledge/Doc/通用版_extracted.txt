@@ -1,0 +1,208 @@
+001|通用版：LCD 紫外光场均匀性标定完整 Python 代码适配所有全局快门 12bit RAW 工业相机，不绑定具体型号，支持自定义分区行列数、系数限幅，包含暗场校正、ROI 裁切、60 分区计算、3D 可视化、结果存档全流程。前置依赖安装bash运行pip install numpy opencv-python pillow matplotlib
+002|完整可运行源码python运行import numpy as np
+003|import cv2
+004|from PIL import Image
+005|import os
+006|import matplotlib.pyplot as plt
+007|from mpl_toolkits.mplot3d import Axes3D
+008|# 解决中文显示问题
+009|plt.rcParams['font.sans-serif'] = ['SimHei']
+010|plt.rcParams['axes.unicode_minus'] = False
+011|def read_12bit_tiff(file_path: str) -> np.ndarray:
+012|    """
+013|    读取12bit无压缩TIFF原始灰度图，返回float32数组
+014|    :param file_path: 图片文件路径
+015|    :return: 二维灰度数组（值域0~4095）
+016|    """
+017|    if not os.path.exists(file_path):
+018|        raise FileNotFoundError(f"文件不存在：{file_path}")
+019|    img = Image.open(file_path)
+020|    return np.array(img, dtype=np.float32)
+021|def dark_correct(light_img: np.ndarray, dark_img: np.ndarray) -> np.ndarray:
+022|    """
+023|    暗场校正：亮场减暗场，消除传感器底噪与固定杂反射
+024|    :param light_img: 亮场原始图
+025|    :param dark_img: 暗场原始图
+026|    :return: 校正后有效灰度图
+027|    """
+028|    corrected = light_img - dark_img
+029|    corrected[corrected < 0] = 0  # 剔除负向噪声
+030|    return corrected
+031|def select_roi(raw_image: np.ndarray) -> np.ndarray:
+032|    """
+033|    手动框选有效发光区域（回车确认，ESC取消）
+034|    :param raw_image: 校正后灰度图
+035|    :return: 裁切后的ROI区域
+036|    """
+037|    # 归一化显示，避免12bit图预览全黑
+038|    display_img = cv2.normalize(raw_image, None, 0, 65535, cv2.NORM_MINMAX, dtype=cv2.CV_16U)
+039|    roi = cv2.selectROI("框选有效发光区域（回车确认，ESC取消）", display_img, showCrosshair=True)
+040|    cv2.destroyAllWindows()
+041|    x, y, w, h = roi
+042|    if w == 0 or h == 0:
+043|        raise ValueError("未框选有效区域")
+044|    return raw_image[y:y+h, x:x+w]
+045|def calc_block_ki(
+046|        roi_img: np.ndarray,
+047|        row_num: int = 5,
+048|        col_num: int = 12,
+049|        ki_min: float = 0.6,
+050|        ki_max: float = 1.5
+051|) -> tuple[list[float], list[float]]:
+052|    """
+053|    划分网格分区，计算每个分区的平均灰度与补偿系数Ki
+054|    :param roi_img: 裁切后的有效区域图像
+055|    :param row_num: 分区行数
+056|    :param col_num: 分区列数
+057|    :param ki_min: Ki系数下限
+058|    :param ki_max: Ki系数上限
+059|    :return: (Ki系数列表, 分区平均灰度列表)，行优先顺序
+060|    """
+061|    h, w = roi_img.shape
+062|    block_w = w // col_num
+063|    block_h = h // row_num
+064|    block_avg_list = []
+065|    # 逐行逐列遍历分区
+066|    for r in range(row_num):
+067|        for c in range(col_num):
+068|            x1 = c * block_w
+069|            y1 = r * block_h
+070|            x2 = x1 + block_w
+071|            y2 = y1 + block_h
+072|            block = roi_img[y1:y2, x1:x2]
+073|            block_avg_list.append(float(np.mean(block)))
+074|    # 全场基准平均灰度
+075|    global_avg = float(np.mean(block_avg_list))
+076|    ki_list = []
+077|    for avg_val in block_avg_list:
+078|        if avg_val < 1e-6:
+079|            ki = 1.0
+080|        else:
+081|            ki = global_avg / avg_val
+082|        # 硬限幅，防止硬件异常导致极端补偿
+083|        ki = float(np.clip(ki, ki_min, ki_max))
+084|        ki_list.append(round(ki, 4))
+085|    return ki_list, block_avg_list
+086|def plot_roi_3d_surface(roi_img: np.ndarray, downsample: int = 8):
+087|    """
+088|    绘制ROI区域灰度3D曲面图，直观展示整体光场分布
+089|    :param roi_img: 校正后的ROI灰度图
+090|    :param downsample: 降采样系数，避免像素过多卡顿
+091|    """
+092|    img_ds = roi_img[::downsample, ::downsample]
+093|    h, w = img_ds.shape
+094|    x = np.arange(w)
+095|    y = np.arange(h)
+096|    X, Y = np.meshgrid(x, y)
+097|    Z = img_ds
+098|    fig = plt.figure(figsize=(10, 7))
+099|    ax = fig.add_subplot(111, projection='3d')
+100|    surf = ax.plot_surface(X, Y, Z, cmap='jet', edgecolor='none', alpha=0.85)
+101|    ax.set_xlabel('横向像素')
+102|    ax.set_ylabel('纵向像素')
+103|    ax.set_zlabel('灰度值（12bit）')
+104|    ax.set_title('屏幕光场灰度3D分布')
+105|    fig.colorbar(surf, shrink=0.5, aspect=10, label='灰度值')
+106|    ax.view_init(elev=30, azim=-45)
+107|    plt.tight_layout()
+108|    plt.show()
+109|def plot_block_3d(
+110|        value_list: list[float],
+111|        row_num: int = 5,
+112|        col_num: int = 12,
+113|        title: str = "分区数值分布",
+114|        zlabel: str = "数值"
+115|):
+116|    """
+117|    绘制分区3D柱状图，展示各分区灰度或Ki系数差异
+118|    """
+119|    value_matrix = np.array(value_list).reshape(row_num, col_num)
+120|    x = np.arange(col_num)
+121|    y = np.arange(row_num)
+122|    X, Y = np.meshgrid(x, y)
+123|    Z_base = np.zeros_like(value_matrix)
+124|    dx, dy = 0.8, 0.8
+125|    fig = plt.figure(figsize=(12, 7))
+126|    ax = fig.add_subplot(111, projection='3d')
+127|    ax.bar3d(
+128|        X.ravel(), Y.ravel(), Z_base.ravel(),
+129|        dx, dy, value_matrix.ravel(),
+130|        cmap='jet', alpha=0.8
+131|    )
+132|    ax.set_xlabel('列号')
+133|    ax.set_ylabel('行号')
+134|    ax.set_zlabel(zlabel)
+135|    ax.set_title(title)
+136|    ax.set_xticks(np.arange(col_num) + dx/2)
+137|    ax.set_xticklabels([f'{i+1}' for i in range(col_num)])
+138|    ax.set_yticks(np.arange(row_num) + dy/2)
+139|    ax.set_yticklabels([f'{i+1}' for i in range(row_num)])
+140|    ax.view_init(elev=30, azim=-50)
+141|    plt.tight_layout()
+142|    plt.show()
+143|if __name__ == "__main__":
+144|    # ====================== 配置参数区（按需修改） ======================
+145|    # 图片文件路径
+146|    DARK_IMG_PATH = "dark_12bit.tif"   # 暗场图路径
+147|    LIGHT_IMG_PATH = "light_12bit.tif" # 亮场图路径
+148|    # 分区规格
+149|    ROW_COUNT = 5    # 分区行数
+150|    COL_COUNT = 12   # 分区列数
+151|    # Ki系数限幅
+152|    KI_LIMIT_MIN = 0.6
+153|    KI_LIMIT_MAX = 1.5
+154|    # 3D可视化开关
+155|    ENABLE_3D_PLOT = True
+156|    # ==================================================================
+157|    # 1. 读取原始图像
+158|    dark_raw = read_12bit_tiff(DARK_IMG_PATH)
+159|    light_raw = read_12bit_tiff(LIGHT_IMG_PATH)
+160|    # 2. 暗场校正
+161|    corrected_img = dark_correct(light_raw, dark_raw)
+162|    # 3. 框选有效发光区域
+163|    screen_roi = select_roi(corrected_img)
+164|    # 4. 计算分区平均灰度与补偿系数
+165|    ki_result, gray_avg_result = calc_block_ki(
+166|        roi_img=screen_roi,
+167|        row_num=ROW_COUNT,
+168|        col_num=COL_COUNT,
+169|        ki_min=KI_LIMIT_MIN,
+170|        ki_max=KI_LIMIT_MAX
+171|    )
+172|    # 5. 控制台输出结果
+173|    print("=" * 70)
+174|    print(f"【{ROW_COUNT}行×{COL_COUNT}列 分区补偿系数 Ki（行优先）】")
+175|    print("=" * 70)
+176|    for row_idx in range(ROW_COUNT):
+177|        start = row_idx * COL_COUNT
+178|        end = start + COL_COUNT
+179|        row_data = ki_result[start:end]
+180|        print(f"第{row_idx+1}行：{row_data}")
+181|    print("\n【一维完整数组（可直接写入设备/标签）】")
+182|    print(ki_result)
+183|    # 6. 保存结果到文件
+184|    with open("calibration_result.txt", "w", encoding="utf-8") as f:
+185|        f.write("分区补偿系数Ki（行优先）：\n")
+186|        f.write(str(ki_result))
+187|        f.write("\n\n分区平均灰度：\n")
+188|        f.write(str(gray_avg_result))
+189|    print("\n✅ 计算完成，结果已保存到 calibration_result.txt")
+190|    # 7. 3D可视化
+191|    if ENABLE_3D_PLOT:
+192|        plot_roi_3d_surface(screen_roi)
+193|        plot_block_3d(gray_avg_result, ROW_COUNT, COL_COUNT, "分区平均灰度分布", "平均灰度值")
+194|        plot_block_3d(ki_result, ROW_COUNT, COL_COUNT, "分区补偿系数Ki分布", "Ki系数")
+195|使用步骤
+196|准备图片
+197|暗场图（关灯拍摄）命名为 dark_12bit.tif
+198|亮场图（开灯全屏纯白拍摄）命名为 light_12bit.tif
+199|两张图必须是12bit 无损 TIFF 格式，且拍摄时相机参数、光路完全一致
+200|把两张图片和代码放在同一文件夹
+201|运行脚本，弹出窗口后用鼠标框选屏幕有效发光区域，按回车确认
+202|控制台输出分区系数，自动生成结果文件，同时弹出 3D 分布图表
+203|关键注意事项
+204|必须使用全局快门相机拍摄，卷帘快门产生的 PWM 横纹会导致计算结果完全失效
+205|标定全程相机曝光、增益、光圈、偏振角度必须固定，不得中途改动
+206|图片必须是原生 12bit RAW 灰度图，禁止使用 JPG/PNG 等压缩格式
+207|若更换任何光学元件（镜头、滤光片、偏振片、匀光板），必须重新拍摄暗场 + 亮场图再计算
+208|合格标准：3D 曲面平滑无周期性波浪、Ki 系数大多集中在 0.85~1.15 区间、无极端限值
