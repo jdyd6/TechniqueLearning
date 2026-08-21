@@ -1,0 +1,28 @@
+# 编译产物
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.out
+*.pdb
+*.ilk
+*.idb
+a.out
+
+
+# 编辑器 / IDE
+.vs/
+.vscode/
+*.user
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Cursor / SpecStory 自动存档
+.specstory/
