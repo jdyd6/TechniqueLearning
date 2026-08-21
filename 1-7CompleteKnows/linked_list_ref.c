@@ -20,7 +20,7 @@ typedef struct Node {
 
 static Node *node_new(int data)
 {
-    Node *n = malloc(sizeof(*n));   //开辟了多少空间？n不是一个指针吗？
+    Node *n = malloc(sizeof(*n));   //开辟了多少空间？n不是一个指针吗？,开辟的就是一个节点大小的空间
     if (n == NULL) {
         return NULL;
     }

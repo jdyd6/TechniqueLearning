@@ -12,8 +12,8 @@ gcc -std=c11 -Wall -Wextra -g -fsanitize=address -o linked_list linked_list.c
 #include <stddef.h>
 
 
-#define SECTION_1 1
-#define SECTION_2 0
+#define SECTION_1 0
+#define SECTION_2 1
 #define SECTION_3 0
 
 
@@ -26,49 +26,101 @@ typedef struct Node {
 
 static Node *node_new(int data)
 {
-    (void)data;
-    return NULL;
+    Node *n = malloc(sizeof(*n));
+    if (n == NULL){
+        return NULL;
+    }
+    n->data = data;
+    n->next = NULL;
+    return n;
 }
 
 static void push_front(Node **head, int data)
 {
-    (void)head;
-    (void)data;
+    Node *n = node_new(data);
+    if (n == NULL){
+        return;
+    }
+    n->next = *head;
+    *head = n;
 }
 
 static void push_back(Node **head, int data)
 {
-    (void)head;
-    (void)data;
+    Node *n = node_new(data);
+    if (n == NULL){
+        return;
+    }
+
+    Node **pp = head;
+    while (*pp != NULL){
+        pp = &(*pp)->next;
+    }
+
+    *pp = n;
 }
 
 static void print_list(const char *tag, const Node *head)
 {
-    (void)tag;
-    (void)head;
+    printf("%s", tag);
+    const Node *p = head;
+    while (p != NULL){
+        printf("%d -> ", p->data);
+        p = p->next;
+    }
+    printf("NULL\n");
 }
 
 static void reverse(Node **head)
 {
-    (void)head;
+    Node *prev = NULL;
+    Node *Curr = *head;
+    while (Curr != NULL){
+        Node *next = Curr->next;
+        Curr->next = prev;
+        prev = Curr;
+        Curr = next;
+    }
+    *head = prev;
 }
 
 static Node *find_value(Node *head, int data)
 {
-    (void)head;
-    (void)data;
+    Node *p = head;
+    while (p != NULL){
+        if (p->data == data){
+            return p;
+        }
+        p = p->next;
+    }
     return NULL;
 }
 
 static void erase(Node **head, Node *target)
 {
-    (void)head;
-    (void)target;
+    if (head == NULL){
+        return;
+    }
+    Node **pp = head;
+    while (*pp != NULL && *pp != target){
+        pp = &(*pp)->next;
+    }
+    if (*pp == NULL){
+        return;
+    }
+    *pp = target->next;
+    free(target);
 }
 
 static void destroy(Node **head)
 {
-    (void)head;
+    Node *p = *head;
+    while (p != NULL){
+        Node *next = p->next;
+        free(p);
+        p = next;
+    }
+    *head = NULL;
 }
 
 #endif
