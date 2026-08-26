@@ -1,0 +1,15 @@
+:name: STM32F401RCT6 UART demo
+:description: 最小程序向 USART2 写出 F401RCT6 OK。
+
+using sysbus
+
+mach create "STM32F401RCT6"
+machine LoadPlatformDescription @platforms/boards/stm32f401rc.repl
+
+sysbus.usart2 CreateFileBackend @E:/Codes/CAndC++/1-8Simulate/demo-stm32f401rc/uart.log true
+logLevel -1 sysbus.usart2
+
+sysbus LoadBinary @E:/Codes/CAndC++/1-8Simulate/demo-stm32f401rc/hello.bin 0x08000000
+cpu VectorTableOffset 0x08000000
+cpu SP 0x20010000
+cpu PC 0x08000009

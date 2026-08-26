@@ -1,0 +1,8 @@
+using "platforms/cpus/stm32f4.repl"
+
+// STM32F401RCT6：256KB Flash、64KB SRAM
+flash:
+    size: 0x40000
+
+sram:
+    size: 0x10000

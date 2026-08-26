@@ -14,9 +14,11 @@ gcc -std=c11 -Wall -Wextra -g -fsanitize=address -o linked_list linked_list.c
 
 #define SECTION_1 0
 #define SECTION_2 1
-#define SECTION_3 0
+#define SECTION_3 1
 
 
+
+//单向链表
 #if SECTION_1
 
 typedef struct Node {
@@ -126,6 +128,7 @@ static void destroy(Node **head)
 #endif
 
 
+//双向循环链表
 #if SECTION_2
 
 typedef struct DNode {
@@ -189,6 +192,9 @@ static void dlist_destroy_nodes(DNode *sentinel)
 #endif
 
 
+
+
+// 侵入式链表
 #if SECTION_3
 
 struct list_head {
