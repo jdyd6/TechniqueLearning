@@ -1,0 +1,99 @@
+# Python 虚拟环境与解释器缓存
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python 测试、分析与 Notebook 缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# 本地环境变量与敏感配置
+.env
+.env.*
+!.env.example
+
+# 原始数据、处理中间数据与缓存
+/data/raw/
+/data/processed/
+/data/cache/
+
+# 训练模型、测试向量与分析报告
+/artifacts/
+/reports/
+/logs/
+*.keras
+*.h5
+*.tflite
+*.onnx
+*.npy
+*.npz
+*.tfrecord
+*.tfrecords
+*.tfevents.*
+/saved_model/
+
+# 自动生成的固件模型与测试数据
+/firmware/generated/
+
+# CMake、Ninja 与通用构建目录
+**/build/
+**/cmake-build-*/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/build.ninja
+**/.ninja_deps
+**/.ninja_log
+**/compile_commands.json
+/_deps/
+/gen/
+/downloads/
+
+# Arm 嵌入式编译产物
+*.o
+*.obj
+*.d
+*.a
+*.lib
+*.elf
+*.axf
+*.out
+*.bin
+*.hex
+*.map
+*.lst
+*.su
+
+# STM32 IDE 构建输出与本地调试状态
+**/Debug/
+**/Release/
+*.launch
+*.user
+*.suo
+
+# Renode 与 Robot Framework 运行产物
+/output/
+robot_output.xml
+output.xml
+log.html
+report.html
+*.save
+*.snapshot
+*.renode-state
+*.log
+
+# 编辑器与操作系统本地文件
+.cursor/
+.idea/
+.vs/
+.DS_Store
+Thumbs.db
+Desktop.ini
