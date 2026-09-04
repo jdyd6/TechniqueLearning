@@ -1,9 +1,13 @@
 # 从零搭建 Renode 仿真项目
 
 > 面向：已经会写 STM32 固件、但还没碰过指令级仿真的人。  
+>
 > 目标芯片：STM32F401RCT6。  
+>
 > 本机 Renode 安装位置：`E:\ProgramFiles\Renode`。  
+>
 > 配套最小工程：同目录 `demo-stm32f401rc\`。  
+>
 > 选型对比见：`嵌入式代码快速仿真工具调研.md`。
 
 读完并跑通 demo 之后，你应当能独立完成四件事：装仿真器、描述一块板、加载一段固件、用串口输出判断「它在跑」。
@@ -15,7 +19,7 @@
 一个 Renode 工程不是 Keil 那种「点一下 Debug」。它由三样东西拼起来：
 
 | 文件 | 扩展名 | 干什么 |
-|---|---|---|
+| --- | --- | --- |
 | 平台描述 | `.repl`（Renode Platform，平台描述） | 告诉仿真器：有哪颗 CPU、Flash/SRAM 多大、USART 在哪个地址 |
 | 启动脚本 | `.resc`（Renode Script，Renode 脚本） | 创建机器、加载固件、把 UART 打到文件、启动/暂停 |
 | 固件 | `.bin` / `.elf` | 真正在虚拟 CPU 上执行的指令 |
@@ -90,7 +94,7 @@ Expand-Archive E:\ProgramFiles\renode-win-portable.zip -DestinationPath E:\Progr
 ### 1.2 本机还用到的辅助工具
 
 | 工具 | 用途 |
-|---|---|
+| --- | --- |
 | Python 3 | 跑 `build_hello.py` |
 | `keystone-engine` | 把 Thumb 汇编变成机器码（`pip install keystone-engine`） |
 
@@ -117,13 +121,13 @@ https://dl.antmicro.com/projects/renode/svd/STM32F40x.svd.gz
 查 STM32F401RCT6 手册（或选芯片手册的 Memory mapping）：
 
 | 资源 | 地址 | 本芯片容量 |
-|---|---|---|
+| --- | --- | --- |
 | Flash | `0x08000000` | 256KB = `0x40000` |
 | SRAM | `0x20000000` | 64KB = `0x10000` |
 | USART2 | `0x40004400` | 与 F4 系列相同 |
 | Cortex-M4 | — | 与 `stm32f4.repl` 中 `cpuType: "cortex-m4"` 一致 |
 
-官方 `stm32f4.repl` 默认按更大的 F407 来（Flash 2MB、SRAM 256KB）。直接拿来跑 F401 **多数时候 CPU 仍能跑**，但内存边界与真机不符。板级 `.repl` 必须覆盖：
+官方 `stm32f4.repl` 默认按更大的 F407 来（Flash 2MB、SRAM 256KB）。接拿直来跑 F401 **多数时候 CPU 仍能跑**，但内存边界与真机不符。板级 `.repl` 必须覆盖：
 
 ```text
 using "platforms/cpus/stm32f4.repl"
@@ -177,7 +181,7 @@ renode.exe --disable-gui -P -1 --plain --hide-analyzers -e "i @脚本.resc; emul
 ```
 
 | 参数 | 作用 |
-|---|---|
+| --- | --- |
 | `--disable-gui` | 不要窗口（也可用 `--disable-xwt`） |
 | `-P -1` | 关掉 Telnet Monitor，脚本才能自己退出 |
 | `emulation RunFor "00:00:00.05"` | 虚拟时间跑 50ms，然后暂停 |
@@ -190,7 +194,7 @@ renode.exe --disable-gui -P -1 --plain --hide-analyzers -e "i @脚本.resc; emul
 向量表（小端，Flash 开头 8 字节）：
 
 | 偏移 | 值 | 含义 |
-|---|---|---|
+| --- | --- | --- |
 | `+0` | `0x20010000` | 初始 MSP，64KB SRAM 顶端 |
 | `+4` | `0x08000009` | 复位处理函数（Thumb） |
 
@@ -262,7 +266,7 @@ start
 常用命令：
 
 | 命令 | 作用 |
-|---|---|
+| --- | --- |
 | `pause` | 停住虚拟时间 |
 | `start` | 继续 |
 | `cpu PC` | 看程序计数器 |
@@ -342,7 +346,7 @@ sysbus LoadELF $bin
 ## 6. 常见翻车
 
 | 现象 | 原因 | 处理 |
-|---|---|---|
+| --- | --- | --- |
 | `renode` 不是命令 | PATH 未刷新 | 新开终端，或用 `renode.exe` 全路径 |
 | 进程一直不退出 | 开了 Telnet Monitor（默认端口 1234） | 无界面验收加 `-P -1`，脚本末尾 `q` |
 | 加载了 bin 但 UART 文件是空的 | PC/VTOR 不对，或写错 UART 基址 | 确认 `0x08000009`、USART2=`0x40004400` |
@@ -355,6 +359,7 @@ sysbus LoadELF $bin
 ## 7. 本机验收记录（2026-08-26）
 
 在 `E:\ProgramFiles\Renode\demo-stm32f401rc` 上首次跑通：USART2 文件内容为 `F401RCT6 OK`。  
+
 同内容已迁到本目录 `demo-stm32f401rc\`，用 `run.cmd` 复现。
 
 这只证明：**Cortex-M4 取指 + USART2 模型可出字**。不证明 SPI、DMA、CS5552、电机与机械。
